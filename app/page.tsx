@@ -1,103 +1,254 @@
-import Image from "next/image";
+// app/page.tsx
+'use client';
+import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Upload, Wand2, Mail, Loader2, History, RefreshCcw } from 'lucide-react';
 
-export default function Home() {
+// Define a type for our summary objects for better type safety
+type Summary = {
+  id: string;
+  originalTranscript: string;
+  generatedSummary: string;
+  customPrompt: string;
+  createdAt: string;
+};
+
+export default function DashboardPage() {
+  const { isSignedIn, user } = useUser();
+  const [transcript, setTranscript] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [summary, setSummary] = useState('');
+  const [recipients, setRecipients] = useState('');
+  const [previousSummaries, setPreviousSummaries] = useState<Summary[]>([]);
+  
+  // Loading states for better UX
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  // Fetch summaries when the user is signed in
+  useEffect(() => {
+    if (isSignedIn) {
+      fetchSummaries();
+    }
+  }, [isSignedIn]);
+
+  const fetchSummaries = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const res = await fetch('/api/summaries');
+      const data = await res.json();
+      // Format the date for better readability
+      const formattedData = data.map((s: any) => ({
+        ...s,
+        createdAt: new Date(s.createdAt).toLocaleString(),
+      }));
+      setPreviousSummaries(formattedData);
+    } catch (error) {
+      console.error("Failed to fetch summaries:", error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setTranscript(`Reading file: ${file.name}...`);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setTranscript(event.target?.result as string);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const generateSummary = async () => {
+    if (!transcript) {
+      alert('Please upload or provide a transcript first.');
+      return;
+    }
+    setIsGenerating(true);
+    setSummary('Generating summary, please wait...');
+    try {
+      const res = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript, prompt: prompt || 'Summarize this meeting transcript.' }),
+      });
+      const data = await res.json();
+      setSummary(data.summary);
+      fetchSummaries(); // Refresh previous summaries list
+    } catch (error) {
+      console.error("Failed to generate summary:", error);
+      setSummary('Failed to generate summary. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const shareViaEmail = async () => {
+    if (!summary || !recipients) {
+      alert('Please generate a summary and provide recipient emails.');
+      return;
+    }
+    setIsSending(true);
+    try {
+      await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary, recipients: recipients.split(',').map(r => r.trim()) }),
+      });
+      alert('Email sent!');
+    } catch (error) {
+      console.error("Failed to send email:", error);
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const loadPrevious = (prev: Summary) => {
+    setTranscript(prev.originalTranscript);
+    setPrompt(prev.customPrompt);
+    setSummary(prev.generatedSummary);
+  };
+  
+  // Render a loading state or a welcome message for signed-out users
+  if (!isSignedIn) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen text-center p-4">
+        <Wand2 className="h-12 w-12 mb-4 text-primary" />
+        <h1 className="text-4xl font-bold mb-2">Welcome to MeetNotes AI</h1>
+        <p className="text-lg text-muted-foreground">Please sign in to summarize and share your meeting notes effortlessly.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        
+        {/* Main Content: Summarizer Workflow */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-6 w-6" />
+                Step 1: Provide a Transcript
+              </CardTitle>
+              <CardDescription>Upload a .txt file or paste the text directly into the text area below.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Input type="file" accept=".txt" onChange={handleUpload} className="mb-4" />
+              <Textarea
+                placeholder="Or paste your transcript here..."
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                className="h-32"
+              />
+            </CardContent>
+          </Card>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wand2 className="h-6 w-6" />
+                Step 2: Generate & Refine Summary
+              </CardTitle>
+              <CardDescription>Add an optional prompt for specific instructions, then generate your summary. You can edit the result before sharing.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                placeholder="Optional: Enter a custom prompt (e.g., 'Summarize in bullet points for executives')"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="mb-4"
+              />
+              <Textarea
+                placeholder="Generated Summary will appear here..."
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                className="h-48"
+              />
+            </CardContent>
+            <CardFooter>
+              <Button onClick={generateSummary} disabled={isGenerating}>
+                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                {isGenerating ? 'Generating...' : 'Generate Summary'}
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-6 w-6" />
+                Step 3: Share Your Summary
+              </CardTitle>
+              <CardDescription>Enter one or more recipient emails, separated by commas.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Input
+                placeholder="recipient1@example.com, recipient2@example.com"
+                value={recipients}
+                onChange={(e) => setRecipients(e.target.value)}
+              />
+            </CardContent>
+            <CardFooter>
+              <Button onClick={shareViaEmail} disabled={isSending}>
+                {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                {isSending ? 'Sending...' : 'Share via Email'}
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Sidebar: Previous Summaries */}
+        <div className="lg:col-span-1">
+          <Card className="sticky top-8">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className='flex items-center gap-2'>
+                  <History className="h-6 w-6" />
+                  History
+                </div>
+                <Button variant="ghost" size="icon" onClick={fetchSummaries} disabled={isLoadingHistory}>
+                  {isLoadingHistory ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                </Button>
+              </CardTitle>
+              <CardDescription>View and reload your previously generated summaries.</CardDescription>
+            </CardHeader>
+            <CardContent className="max-h-[60vh] overflow-y-auto">
+              {isLoadingHistory ? (
+                <div className="flex justify-center items-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : previousSummaries.length > 0 ? (
+                <div className="space-y-4">
+                  {previousSummaries.map((sum) => (
+                    <div key={sum.id} className="border p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">{sum.createdAt}</p>
+                      <p className="font-semibold truncate my-1" title={sum.customPrompt || 'Default Summary'}>{sum.customPrompt || 'Default Summary'}</p>
+                      <Button variant="link" className="p-0 h-auto" onClick={() => loadPrevious(sum)}>
+                        Load this summary
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Your generated summaries will appear here.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
