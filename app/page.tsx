@@ -221,7 +221,7 @@ export default function DashboardPage() {
               Step 1: Provide a Transcript
             </CardTitle>
             <CardDescription>
-              Upload a .txt file or paste the text directly into the text area
+              Upload a .txt file or paste the text directly into the text area(max 2500 words)
               below.
             </CardDescription>
           </CardHeader>
