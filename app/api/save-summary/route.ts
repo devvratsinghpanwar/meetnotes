@@ -12,11 +12,14 @@ export async function POST(req: Request) {
 
   try {
     // Get all the necessary data from the frontend
-    const { transcript, prompt, summary } = await req.json();
+    const { name, transcript, prompt, summary } = await req.json();
+    if (!name || !transcript || !prompt || !summary) {
+      return new Response('Missing required fields', { status: 400 });
+    }
 
     const newSummary = {
-      // Your schema expects an integer, so we don't pass a string ID
       userId,
+      name,
       transcript,
       prompt,
       summary,

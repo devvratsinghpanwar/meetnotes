@@ -26,6 +26,7 @@ import {
 
 // For .docx download
 import { Document, Packer, Paragraph } from "docx";
+
 import { saveAs } from "file-saver";
 
 export default function DashboardPage() {
@@ -34,10 +35,11 @@ export default function DashboardPage() {
   const [prompt, setPrompt] = useState("");
   const [summary, setSummary] = useState("");
   const [recipients, setRecipients] = useState("");
+  const [name, setName] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // New saving state
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -87,12 +89,16 @@ export default function DashboardPage() {
       toast.error("There is no summary to save.");
       return;
     }
+    if (!name) {
+      toast.error("Please provide a name for your summary.");
+      return;
+    }
     setIsSaving(true);
     try {
       await fetch("/api/save-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript, prompt, summary }),
+        body: JSON.stringify({ name, transcript, prompt, summary }),
       });
       toast.success("Summary saved to your history!");
     } catch (error) {
@@ -270,28 +276,36 @@ export default function DashboardPage() {
 
             {/* New buttons for Save and Download */}
             {summary && (
-              <div className="flex items-center gap-2 mt-4">
-                <Button
-                  variant="default"
-                  onClick={handleSaveSummary}
-                  disabled={isSaving}
-                  className="bg-emerald-300 dark:bg-emerald-500 text-emerald-900 dark:text-white hover:bg-emerald-400 dark:hover:bg-emerald-600 hover:text-white transition-colors"
-                >
-                  {isSaving ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  {isSaving ? "Saving..." : "Save Summary"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={downloadAsDocx}
-                  className="bg-emerald-300 dark:bg-emerald-500 text-emerald-900 dark:text-white hover:bg-emerald-400 dark:hover:bg-emerald-600 hover:text-white transition-colors"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download as DOCX
-                </Button>
+              <div className="flex flex-col gap-2 mt-4">
+                <Input
+                  placeholder="Enter a name for your summary"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="max-w-xs"
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    onClick={handleSaveSummary}
+                    disabled={isSaving}
+                    className="bg-emerald-300 dark:bg-emerald-500 text-emerald-900 dark:text-white hover:bg-emerald-400 dark:hover:bg-emerald-600 hover:text-white transition-colors"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    {isSaving ? "Saving..." : "Save Summary"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={downloadAsDocx}
+                    className="bg-emerald-300 dark:bg-emerald-500 text-emerald-900 dark:text-white hover:bg-emerald-400 dark:hover:bg-emerald-600 hover:text-white transition-colors"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download as DOCX
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
