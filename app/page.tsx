@@ -55,7 +55,10 @@ export default function DashboardPage() {
 
   const generateSummary = async (customPrompt: string = prompt) => {
     if (!transcript) {
-      toast.error("Please upload or provide a transcript first.");
+      toast.error("Please upload or provide a transcript first.", {
+        icon: "❌",
+        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+      });
       return;
     }
     setIsGenerating(true);
@@ -72,12 +75,19 @@ export default function DashboardPage() {
       const data = await res.json();
       setSummary(data.summary);
       toast.success(
-        "Summary generated successfully! You can now edit and save."
+        "Summary generated successfully! You can now edit and save.",
+        {
+          icon: "✅",
+          className: "bg-emerald-100 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800"
+        }
       );
     } catch (error) {
       console.error("Failed to generate summary:", error);
       setSummary("Failed to generate summary. Please try again.");
-      toast.error("Failed to generate summary. Please try again.");
+      toast.error("Failed to generate summary. Please try again.", {
+        icon: "❌",
+        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -86,11 +96,17 @@ export default function DashboardPage() {
   // New function to handle saving the summary
   const handleSaveSummary = async () => {
     if (!summary) {
-      toast.error("There is no summary to save.");
+      toast.error("There is no summary to save.", {
+        icon: "❌",
+        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+      });
       return;
     }
     if (!name) {
-      toast.error("Please provide a name for your summary.");
+      toast.error("Please provide a name for your summary.", {
+        icon: "⚠️",
+        className: "bg-yellow-100 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-200 border-yellow-300 dark:border-yellow-800"
+      });
       return;
     }
     setIsSaving(true);
@@ -100,10 +116,16 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, transcript, prompt, summary }),
       });
-      toast.success("Summary saved to your history!");
+      toast.success("Summary saved to your history!", {
+        icon: "✅",
+        className: "bg-emerald-100 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800"
+      });
     } catch (error) {
       console.error("Failed to save summary:", error);
-      toast.error("Failed to save summary.");
+      toast.error("Failed to save summary.", {
+        icon: "❌",
+        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+      });
     } finally {
       setIsSaving(false);
     }
@@ -146,7 +168,10 @@ export default function DashboardPage() {
 
   const shareViaEmail = async () => {
     if (!summary || !recipients) {
-      toast.error("Please generate a summary and provide recipient emails.");
+      toast.error("Please generate a summary and provide recipient emails.", {
+        icon: "⚠️",
+        className: "bg-yellow-100 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-200 border-yellow-300 dark:border-yellow-800"
+      });
       return;
     }
     setIsSending(true);
@@ -159,10 +184,16 @@ export default function DashboardPage() {
           recipients: recipients.split(",").map((r) => r.trim()),
         }),
       });
-      toast.success("Email sent!");
+      toast.success("Email sent!", {
+        icon: "✅",
+        className: "bg-emerald-100 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800"
+      });
     } catch (error) {
       console.error("Failed to send email:", error);
-      toast.error("Failed to send email. Please try again.");
+      toast.error("Failed to send email. Please try again.", {
+        icon: "❌",
+        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+      });
     } finally {
       setIsSending(false);
     }
@@ -181,7 +212,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8 flex justify-center bg-gradient-to-r from-black to-green-950">
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8 flex justify-center">
       <div className="w-full max-w-4xl space-y-6">
         <Card>
           <CardHeader>
@@ -199,7 +230,7 @@ export default function DashboardPage() {
               type="file"
               accept=".txt"
               onChange={handleUpload}
-              className="mb-4"
+              className="mb-4 gap-4"
             />
             <Textarea
               placeholder="Or paste your transcript here..."

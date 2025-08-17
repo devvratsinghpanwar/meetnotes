@@ -49,7 +49,10 @@ export default function SummariesPage() {
       setSummaries(sortedData);
     } catch (error) {
       console.error("Failed to fetch summaries:", error);
-      toast.error('Failed to load summaries.');
+      toast.error('Failed to load summaries.', {
+        icon: "❌",
+        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -59,11 +62,17 @@ export default function SummariesPage() {
     try {
       const res = await fetch(`/api/summaries/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
-      toast.success('Summary deleted successfully!');
+      toast.success('Summary deleted successfully!', {
+        icon: "✅",
+        className: "bg-emerald-100 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800"
+      });
       fetchSummaries(); // Refresh list
     } catch (error) {
       console.error("Failed to delete summary:", error);
-      toast.error('Failed to delete summary.');
+      toast.error('Failed to delete summary.', {
+        icon: "❌",
+        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+      });
     }
   };
 
@@ -113,10 +122,10 @@ export default function SummariesPage() {
 
       {/* Custom modal for selected summary */}
       {selectedSummary && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-colors">
+          <div className="card-glass rounded-2xl shadow-lg max-w-lg w-full p-6 relative border border-border/70">
             <button
-              className="absolute top-2 right-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white text-2xl font-bold"
+              className="absolute top-2 right-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white text-2xl font-bold transition-colors"
               onClick={() => setSelectedSummary(null)}
               aria-label="Close"
             >
@@ -126,15 +135,15 @@ export default function SummariesPage() {
             <div className="mb-4">
               <div className="mb-2">
                 <span className="font-semibold text-zinc-700 dark:text-zinc-200">Prompt:</span>
-                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line">{selectedSummary.customPrompt || selectedSummary.prompt || ''}</div>
+                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line transition-colors">{selectedSummary.customPrompt || selectedSummary.prompt || ''}</div>
               </div>
               <div className="mb-2">
                 <span className="font-semibold text-zinc-700 dark:text-zinc-200">Original Transcript:</span>
-                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-xs text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto">{selectedSummary.originalTranscript || selectedSummary.transcript || ''}</div>
+                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-xs text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto transition-colors">{selectedSummary.originalTranscript || selectedSummary.transcript || ''}</div>
               </div>
               <div>
                 <span className="font-semibold text-zinc-700 dark:text-zinc-200">Generated Summary:</span>
-                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto">{selectedSummary.generatedSummary || selectedSummary.summary || ''}</div>
+                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto transition-colors">{selectedSummary.generatedSummary || selectedSummary.summary || ''}</div>
               </div>
             </div>
           </div>
