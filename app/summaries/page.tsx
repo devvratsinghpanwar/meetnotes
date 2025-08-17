@@ -1,83 +1,116 @@
 // app/summaries/page.tsx
 'use client';
+
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Trash } from 'lucide-react';
 import { toast } from 'sonner';
-// Import Dialog components from shadcn/ui
-import { Textarea } from '@/components/ui/textarea';
 
-type Summary = {
+// Define the structure of summary items received from the API
+interface Summary {
   id: string;
   name?: string;
   originalTranscript?: string;
   generatedSummary?: string;
   customPrompt?: string;
   createdAt: string;
-  // For compatibility with main page summaries
   prompt?: string;
   transcript?: string;
   summary?: string;
-};
+}
+
+// Generic Fetch Helper: Safe, reusable, and fully typed
+async function fetchJson<T>(
+  input: RequestInfo,
+  init?: RequestInit
+): Promise<T> {
+  const response = await fetch(input, init);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Request failed: ${response.status} – ${errorText}`);
+  }
+  return (await response.json()) as T;
+}
 
 export default function SummariesPage() {
   const { isSignedIn } = useUser();
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // New state to hold the summary selected by the user
-  const [selectedSummary, setSelectedSummary] = useState<Summary | null>(null);
+  const [selectedSummary, setSelectedSummary] = useState<Summary | null>(
+    null
+  );
 
+  // Fetch the user's summaries on sign-in
   useEffect(() => {
     if (isSignedIn) {
       fetchSummaries();
     }
   }, [isSignedIn]);
 
+  // Retrieve data from API and format for display
   const fetchSummaries = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/summaries');
-      const data = await res.json();
-      const sortedData = data
-        .map((s: any) => ({
+      const data = await fetchJson<Summary[]>('/api/summaries');
+      const formatted = data
+        .map(s => ({
           ...s,
           createdAt: new Date(s.createdAt).toLocaleString(),
         }))
-        .sort((a: Summary, b: Summary) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setSummaries(sortedData);
-    } catch (error) {
-      console.error("Failed to fetch summaries:", error);
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() -
+            new Date(a.createdAt).getTime()
+        );
+      setSummaries(formatted);
+    } catch (error: unknown) {
+      console.error('Failed to fetch summaries:', error);
       toast.error('Failed to load summaries.', {
-        icon: "❌",
-        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+        icon: '❌',
+        className:
+          'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Handle deletion of a summary and refresh the list
   const deleteSummary = async (id: string) => {
     try {
-      const res = await fetch(`/api/summaries/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
-      toast.success('Summary deleted successfully!', {
-        icon: "✅",
-        className: "bg-emerald-100 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800"
+      await fetchJson<void>(`/api/summaries/${id}`, {
+        method: 'DELETE',
       });
-      fetchSummaries(); // Refresh list
-    } catch (error) {
-      console.error("Failed to delete summary:", error);
+      toast.success('Summary deleted successfully!', {
+        icon: '✅',
+        className:
+          'bg-emerald-100 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800',
+      });
+      fetchSummaries();
+    } catch (error: unknown) {
+      console.error('Failed to delete summary:', error);
       toast.error('Failed to delete summary.', {
-        icon: "❌",
-        className: "bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800"
+        icon: '❌',
+        className:
+          'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800',
       });
     }
   };
 
   if (!isSignedIn) {
-    return <div className="flex justify-center items-center h-screen">Please sign in to view summaries.</div>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        Please sign in to view summaries.
+      </div>
+    );
   }
 
   return (
@@ -89,24 +122,31 @@ export default function SummariesPage() {
         </div>
       ) : summaries.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {summaries.map((sum) => (
+          {summaries.map(sum => (
             <Card
               key={sum.id}
               className="cursor-pointer hover:shadow-lg transition-shadow relative"
               onClick={() => setSelectedSummary(sum)}
             >
               <CardHeader>
-                <CardTitle className="pr-8 truncate">{sum.name || sum.customPrompt || sum.prompt || 'Default Summary'}</CardTitle>
+                <CardTitle className="pr-8 truncate">
+                  {sum.name ||
+                    sum.customPrompt ||
+                    sum.prompt ||
+                    'Default Summary'}
+                </CardTitle>
                 <CardDescription>{sum.createdAt}</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-3">{sum.generatedSummary}</p>
+                <p className="text-sm text-muted-foreground line-clamp-3">
+                  {sum.generatedSummary}
+                </p>
               </CardContent>
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute top-4 right-4"
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   deleteSummary(sum.id);
                 }}
@@ -117,10 +157,11 @@ export default function SummariesPage() {
           ))}
         </div>
       ) : (
-        <p className="text-center text-muted-foreground mt-8">No summaries yet. Generate some on the home page!</p>
+        <p className="text-center text-muted-foreground mt-8">
+          No summaries yet. Generate some on the home page!
+        </p>
       )}
 
-      {/* Custom modal for selected summary */}
       {selectedSummary && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-colors">
           <div className="card-glass rounded-2xl shadow-lg max-w-lg w-full p-6 relative border border-border/70">
@@ -131,19 +172,43 @@ export default function SummariesPage() {
             >
               &times;
             </button>
-            <h2 className="text-xl font-bold mb-2 text-emerald-700 dark:text-emerald-300">{selectedSummary.name || selectedSummary.customPrompt || selectedSummary.prompt || 'Summary Details'}</h2>
+            <h2 className="text-xl font-bold mb-2 text-emerald-700 dark:text-emerald-300">
+              {selectedSummary.name ||
+                selectedSummary.customPrompt ||
+                selectedSummary.prompt ||
+                'Summary Details'}
+            </h2>
             <div className="mb-4">
+              {/* Prompt */}
               <div className="mb-2">
-                <span className="font-semibold text-zinc-700 dark:text-zinc-200">Prompt:</span>
-                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line transition-colors">{selectedSummary.customPrompt || selectedSummary.prompt || ''}</div>
+                <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                  Prompt:
+                </span>
+                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line transition-colors">
+                  {selectedSummary.customPrompt || selectedSummary.prompt || ''}
+                </div>
               </div>
+
+              {/* Original Transcript */}
               <div className="mb-2">
-                <span className="font-semibold text-zinc-700 dark:text-zinc-200">Original Transcript:</span>
-                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-xs text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto transition-colors">{selectedSummary.originalTranscript || selectedSummary.transcript || ''}</div>
+                <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                  Original Transcript:
+                </span>
+                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-xs text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto transition-colors">
+                  {selectedSummary.originalTranscript ||
+                    selectedSummary.transcript ||
+                    ''}
+                </div>
               </div>
+
+              {/* Generated Summary */}
               <div>
-                <span className="font-semibold text-zinc-700 dark:text-zinc-200">Generated Summary:</span>
-                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto transition-colors">{selectedSummary.generatedSummary || selectedSummary.summary || ''}</div>
+                <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                  Generated Summary:
+                </span>
+                <div className="bg-zinc-100 dark:bg-zinc-800 rounded p-2 mt-1 text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-line max-h-40 overflow-y-auto transition-colors">
+                  {selectedSummary.generatedSummary || selectedSummary.summary || ''}
+                </div>
               </div>
             </div>
           </div>
