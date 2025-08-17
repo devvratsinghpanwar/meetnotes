@@ -1,34 +1,48 @@
 // app/api/summarize/route.ts
-import { Groq } from 'groq-sdk';
-import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/app/db';
-import { summaries } from '@/app/db/schema';
-import { eq } from 'drizzle-orm';
+import { NextResponse } from 'next/server';
+import Groq from 'groq-sdk';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Initialize Groq client
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!userId) {
+    return new Response('Unauthorized', { status: 401 });
+  }
 
-  const { transcript, prompt } = await req.json();
-  const completion = await groq.chat.completions.create({
-    messages: [
-      { role: 'system', content: 'You are a helpful assistant that summarizes meeting transcripts.' },
-      { role: 'user', content: `Transcript: ${transcript}\n\nInstructions: ${prompt}` },
-    ],
-    model: 'llama3-8b-8192',  
-  });
-  const summaryText = completion.choices[0]?.message?.content || 'Error';
+  try {
+    const { transcript, prompt } = await req.json();
 
-  // Save to DB
-  await db.insert(summaries).values({
-    userId,
-    transcript,
-    prompt,
-    summary: summaryText,
-  });
+    if (!transcript) {
+      return new Response('Transcript is required', { status: 400 });
+    }
 
-  return NextResponse.json({ summary: summaryText });
+    // 1. Generate summary from Groq AI
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert meeting summarizer. Your goal is to provide clear, concise, and accurate summaries of meeting transcripts based on the user\'s specific instructions.',
+        },
+        {
+          role: 'user',
+          content: `Here is the meeting transcript:\n\n${transcript}\n\nPlease follow this instruction: "${prompt}"`,
+        },
+      ],
+      model: 'llama3-8b-8192',
+    });
+
+    const generatedSummary = chatCompletion.choices[0]?.message?.content || 'Sorry, I couldn\'t generate a summary.';
+
+    // 2. REMOVED DATABASE LOGIC. Only return the generated summary.
+    return NextResponse.json({ summary: generatedSummary });
+
+  } catch (error) {
+    console.error('Failed to generate summary:', error);
+    return new Response('Internal Server Error', { status: 500 });
+  }
 }

@@ -15,7 +15,10 @@ const Navbar = () => {
         <div className='flex items-center gap-4'>
           <ModeToggle />
           <SignedIn>
-            {/* This UserButton comes from Clerk and handles everything */}
+            {/* New "My Summaries" button for signed-in users */}
+            <Button variant="default" asChild>
+              <Link href="/summaries">My Summaries</Link>
+            </Button>
             <UserButton afterSignOutUrl='/' />
           </SignedIn>
           <SignedOut>
